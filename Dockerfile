@@ -14,6 +14,7 @@ FROM php:${PHP_VERSION}-fpm-alpine AS symfony_php
 RUN apk add --no-cache \
 		acl \
 		fcgi \
+		bash \
 		file \
 		gettext \
 		git \
@@ -112,6 +113,7 @@ RUN set -eux; \
 VOLUME /srv/app/var
 
 ENTRYPOINT ["docker-entrypoint"]
+
 CMD ["php-fpm"]
 
 FROM caddy:${CADDY_VERSION}-builder-alpine AS symfony_caddy_builder
@@ -130,3 +132,12 @@ COPY --from=dunglas/mercure:v0.11 /srv/public /srv/mercure-assets/
 COPY --from=symfony_caddy_builder /usr/bin/caddy /usr/bin/caddy
 COPY --from=symfony_php /srv/app/public public/
 COPY docker/caddy/Caddyfile /etc/caddy/Caddyfile
+
+FROM symfony_php AS symfony_php_debug
+
+ARG XDEBUG_VERSION=3.1.2
+RUN set -eux; \
+	apk add --no-cache --virtual .build-deps $PHPIZE_DEPS; \
+	pecl install xdebug-$XDEBUG_VERSION; \
+	docker-php-ext-enable xdebug; \
+	apk del .build-deps
